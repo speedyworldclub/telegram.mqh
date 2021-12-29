@@ -6,14 +6,14 @@
 #property copyright "Copyright 2014, MetaQuotes Software Corp."
 #property link      "http://www.mql5.com"
 #property strict
-
+bool debug=false;
 //+------------------------------------------------------------------+
 //|   Include                                                        |
 //+------------------------------------------------------------------+
 #include <Arrays\List.mqh>
 #include <Arrays\ArrayString.mqh>
-#include <Common.mqh>
-#include <Jason.mqh>
+#include <Telegram\Common.mqh>
+#include <Telegram\Jason.mqh>
 
 //+------------------------------------------------------------------+
 //|   Defines                                                        |
@@ -24,7 +24,7 @@
 //|   ENUM_CHAT_ACTION                                               |
 //+------------------------------------------------------------------+
 enum ENUM_CHAT_ACTION
-{
+  {
    ACTION_FIND_LOCATION,   //picking location...
    ACTION_RECORD_AUDIO,    //recording audio...
    ACTION_RECORD_VIDEO,    //recording video...
@@ -33,22 +33,22 @@ enum ENUM_CHAT_ACTION
    ACTION_UPLOAD_DOCUMENT, //sending file...
    ACTION_UPLOAD_PHOTO,    //sending photo...
    ACTION_UPLOAD_VIDEO     //sending video...
-};
+  };
 //+------------------------------------------------------------------+
 //|   ChatActionToString                                             |
 //+------------------------------------------------------------------+
 string ChatActionToString(const ENUM_CHAT_ACTION _action)
-{
+  {
    string result=EnumToString(_action);
    result=StringSubstr(result,7);
    StringToLower(result);
    return(result);
-}
+  }
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
 class CCustomMessage : public CObject
-{
+  {
 public:
    bool              done;
    long              update_id;
@@ -64,12 +64,12 @@ public:
    string            chat_last_name;
    string            chat_username;
    string            chat_type;
-   //---
+   //---   
    datetime          message_date;
    string            message_text;
 
                      CCustomMessage()
-   {
+     {
       done=false;
       update_id=0;
       message_id=0;
@@ -95,30 +95,30 @@ public:
       chat_type=NULL;
       message_date=0;
       message_text=NULL;
-   }
+     }
 
-};
+  };
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
 class CCustomChat : public CObject
-{
+  {
 public:
    long              m_id;
    CCustomMessage    m_last;
    CCustomMessage    m_new_one;
    int               m_state;
    datetime          m_time;
-};
+  };
 //+------------------------------------------------------------------+
 //|   CCustomBot                                                     |
 //+------------------------------------------------------------------+
 class CCustomBot
-{
+  {
 private:
    //+------------------------------------------------------------------+
-   void              ArrayAdd(uchar &dest[],const uchar &src[])
-   {
+   void  ArrayAdd(uchar &dest[],const uchar &src[])
+     {
       int src_size=ArraySize(src);
       if(src_size==0)
          return;
@@ -126,17 +126,17 @@ private:
       int dest_size=ArraySize(dest);
       ArrayResize(dest,dest_size+src_size,500);
       ArrayCopy(dest,src,dest_size,0,src_size);
-   }
+     }
 
    //+------------------------------------------------------------------+
-   void              ArrayAdd(char &dest[],const string text)
-   {
+   void  ArrayAdd(char &dest[],const string text)
+     {
       int len=StringLen(text);
       if(len>0)
-      {
+        {
          uchar src[];
-         for(int i=0; i<len; i++)
-         {
+         for(int i=0;i<len;i++)
+           {
             ushort ch=StringGetCharacter(text,i);
 
             uchar array[];
@@ -145,63 +145,63 @@ private:
             int size=ArraySize(src);
             ArrayResize(src,size+total);
             ArrayCopy(src,array,size,0,total);
-         }
+           }
          ArrayAdd(dest,src);
-      }
-   }
+        }
+     }
 
    //+------------------------------------------------------------------+
-   int               SaveToFile(const string filename,
-                                const char &text[])
-   {
+   int SaveToFile(const string filename,
+                  const char &text[])
+     {
       ResetLastError();
 
       int handle=FileOpen(filename,FILE_BIN|FILE_ANSI|FILE_WRITE);
       if(handle==INVALID_HANDLE)
-      {
+        {
          return(GetLastError());
-      }
+        }
 
       FileWriteArray(handle,text);
       FileClose(handle);
 
       return(0);
-   }
+     }
 
    //+------------------------------------------------------------------+
-   string            UrlEncode(const string text)
-   {
+   string UrlEncode(const string text)
+     {
       string result=NULL;
       int length=StringLen(text);
       for(int i=0; i<length; i++)
-      {
+        {
          ushort ch=StringGetCharacter(text,i);
 
          if((ch>=48 && ch<=57) || // 0-9
-               (ch>=65 && ch<=90) || // A-Z
-               (ch>=97 && ch<=122) || // a-z
-               (ch=='!') || (ch=='\'') || (ch=='(') ||
-               (ch==')') || (ch=='*') || (ch=='-') ||
-               (ch=='.') || (ch=='_') || (ch=='~')
-           )
-         {
+            (ch>=65 && ch<=90) || // A-Z
+            (ch>=97 && ch<=122) || // a-z
+            (ch=='!') || (ch=='\'') || (ch=='(') ||
+            (ch==')') || (ch=='*') || (ch=='-') ||
+            (ch=='.') || (ch=='_') || (ch=='~')
+            )
+           {
             result+=ShortToString(ch);
-         }
+           }
          else
-         {
+           {
             if(ch==' ')
                result+=ShortToString('+');
             else
-            {
+              {
                uchar array[];
                int total=ShortToUtf8(ch,array);
-               for(int k=0; k<total; k++)
+               for(int k=0;k<total;k++)
                   result+=StringFormat("%%%02X",array[k]);
-            }
-         }
-      }
+              }
+           }
+        }
       return result;
-   }
+     }
 
 protected:
    CList             m_chats;
@@ -214,11 +214,11 @@ private:
    bool              m_first_remove;
 
    //+------------------------------------------------------------------+
-   int               PostRequest(string &out,
-                                 const string url,
-                                 const string params,
-                                 const int timeout=5000)
-   {
+   int PostRequest(string &out,
+                   const string url,
+                   const string params,
+                   const int timeout=5000)
+     {
       char data[];
       int data_size=StringLen(params);
       StringToCharArray(params,data,0,data_size);
@@ -229,72 +229,72 @@ private:
       //--- application/x-www-form-urlencoded
       int res=WebRequest("POST",url,NULL,NULL,timeout,data,data_size,result,result_headers);
       if(res==200)//OK
-      {
+        {
          //--- delete BOM
          int start_index=0;
          int size=ArraySize(result);
          for(int i=0; i<fmin(size,8); i++)
-         {
+           {
             if(result[i]==0xef || result[i]==0xbb || result[i]==0xbf)
                start_index=i+1;
             else
                break;
-         }
+           }
          //---
          out=CharArrayToString(result,start_index,WHOLE_ARRAY,CP_UTF8);
          return(0);
-      }
+        }
       else
-      {
+        {
          if(res==-1)
-         {
+           {
             return(_LastError);
-         }
+           }
          else
-         {
+           {
             //--- HTTP errors
             if(res>=100 && res<=511)
-            {
+              {
                out=CharArrayToString(result,0,WHOLE_ARRAY,CP_UTF8);
                Print(out);
                return(ERR_HTTP_ERROR_FIRST+res);
-            }
+              }
             return(res);
-         }
-      }
+           }
+        }
 
       return(0);
-   }
+     }
 
    //+------------------------------------------------------------------+
-   int               ShortToUtf8(const ushort _ch,uchar &out[])
-   {
+   int ShortToUtf8(const ushort _ch,uchar &out[])
+     {
       //---
       if(_ch<0x80)
-      {
+        {
          ArrayResize(out,1);
          out[0]=(uchar)_ch;
          return(1);
-      }
+        }
       //---
       if(_ch<0x800)
-      {
+        {
          ArrayResize(out,2);
          out[0] = (uchar)((_ch >> 6)|0xC0);
          out[1] = (uchar)((_ch & 0x3F)|0x80);
          return(2);
-      }
+        }
       //---
       if(_ch<0xFFFF)
-      {
+        {
          if(_ch>=0xD800 && _ch<=0xDFFF)//Ill-formed
-         {
+           {
             ArrayResize(out,1);
             out[0]=' ';
             return(1);
-         }
+           }
          else if(_ch>=0xE000 && _ch<=0xF8FF)//Emoji
-         {
+           {
             int ch=0x10000|_ch;
             ArrayResize(out,4);
             out[0] = (uchar)(0xF0 | (ch >> 18));
@@ -302,26 +302,26 @@ private:
             out[2] = (uchar)(0x80 | ((ch >> 6) & 0x3F));
             out[3] = (uchar)(0x80 | ((ch & 0x3F)));
             return(4);
-         }
+           }
          else
-         {
+           {
             ArrayResize(out,3);
             out[0] = (uchar)((_ch>>12)|0xE0);
             out[1] = (uchar)(((_ch>>6)&0x3F)|0x80);
             out[2] = (uchar)((_ch&0x3F)|0x80);
             return(3);
-         }
-      }
+           }
+        }
       ArrayResize(out,3);
       out[0] = 0xEF;
       out[1] = 0xBF;
       out[2] = 0xBD;
       return(3);
-   }
+     }
 
-   //+------------------------------------------------------------------+
-   string            StringDecode(string text)
-   {
+   //+------------------------------------------------------------------+   
+   string StringDecode(string text)
+     {
       //--- replace \n
       StringReplace(text,"\n",ShortToString(0x0A));
 
@@ -329,7 +329,7 @@ private:
       int haut=0;
       int pos=StringFind(text,"\\u");
       while(pos!=-1)
-      {
+        {
          string strcode=StringSubstr(text,pos,6);
          string strhex=StringSubstr(text,pos+2,4);
 
@@ -338,71 +338,67 @@ private:
          int total=StringLen(strhex);
          int result=0;
          for(int i=0,k=total-1; i<total; i++,k--)
-         {
+           {
             int coef=(int)pow(2,4*k);
             ushort ch=StringGetCharacter(strhex,i);
             if(ch>='0' && ch<='9')
                result+=(ch-'0')*coef;
             if(ch>='A' && ch<='F')
                result+=(ch-'A'+10)*coef;
-         }
+           }
 
          if(haut!=0)
-         {
+           {
             if(result>=0xDC00 && result<=0xDFFF)
-            {
+              {
                int dec=((haut-0xD800)<<10)+(result-0xDC00);//+0x10000;
-               StringReplaceEx(text,pos,6,ShortToString((ushort)dec));
+               StringReplace(text,pos,6,ShortToString((ushort)dec));
                haut=0;
-            }
+              }
             else
-            {
+              {
                //--- error: Second byte out of range
                haut=0;
-            }
-         }
+              }
+           }
          else
-         {
+           {
             if(result>=0xD800 && result<=0xDBFF)
-            {
+              {
                haut=result;
-               StringReplaceEx(text,pos,6,"");
-            }
+               StringReplace(text,pos,6,"");
+              }
             else
-            {
-               StringReplaceEx(text,pos,6,ShortToString((ushort)result));
-            }
-         }
+              {
+               StringReplace(text,pos,6,ShortToString((ushort)result));
+              }
+           }
 
          pos=StringFind(text,"\\u",pos);
-      }
+        }
       return(text);
-   }
+     }
 
    //+------------------------------------------------------------------+
-   int               StringReplaceEx(string &string_var,
-                                     const int start_pos,
-                                     const int length,
-                                     const string replacement)
-   {
+   int StringReplace(string &string_var,
+                     const int start_pos,
+                     const int length,
+                     const string replacement)
+     {
       string temp=(start_pos==0)?"":StringSubstr(string_var,0,start_pos);
       temp+=replacement;
       temp+=StringSubstr(string_var,start_pos+length);
       string_var=temp;
       return(StringLen(replacement));
-   }
+     }
 
-   //+------------------------------------------------------------------+
-   string            BoolToString(const bool _value)
-   {
-      if(_value)return("true");
-      return("false");
-   }
+   //+------------------------------------------------------------------+   
+   string BoolToString(const bool _value){if(_value)return("true");return("false");}
 
 protected:
    //+------------------------------------------------------------------+
-   string            StringTrim(string text)
-   {
+   string StringTrim(string text)
+     {
 #ifdef __MQL4__
       text = StringTrimLeft(text);
       text = StringTrimRight(text);
@@ -412,40 +408,40 @@ protected:
       StringTrimRight(text);
 #endif
       return(text);
-   }
+     }
 
 public:
-   //+------------------------------------------------------------------+
-   void              CCustomBot()
-   {
+   //+------------------------------------------------------------------+   
+   void CCustomBot()
+     {
       m_token=NULL;
       m_name=NULL;
       m_update_id=0;
       m_first_remove=true;
       m_chats.Clear();
       m_users_filter.Clear();
-   }
+     }
 
    //+------------------------------------------------------------------+
-   int               ChatsTotal()
-   {
+   int ChatsTotal()
+     {
       return(m_chats.Total());
-   }
+     }
 
    //+------------------------------------------------------------------+
-   int               Token(const string _token)
-   {
+   int Token(const string _token)
+     {
       string token=StringTrim(_token);
       if(token=="")
          return(ERR_TOKEN_ISEMPTY);
       //---
       m_token=token;
       return(0);
-   }
+     }
 
    //+------------------------------------------------------------------+
-   void              UserNameFilter(const string username_list)
-   {
+   void UserNameFilter(const string username_list)
+     {
       m_users_filter.Clear();
 
       //--- parsing
@@ -462,28 +458,25 @@ public:
       string array[];
       int amount=StringSplit(text,' ',array);
       for(int i=0; i<amount; i++)
-      {
+        {
          string username=StringTrim(array[i]);
          if(username!="")
-         {
+           {
             //--- remove first @
             if(StringGetCharacter(username,0)=='@')
                username=StringSubstr(username,1);
 
             m_users_filter.Add(username);
-         }
-      }
+           }
+        }
 
-   }
+     }
    //+------------------------------------------------------------------+
-   string            Name()
-   {
-      return(m_name);
-   }
+   string Name(){return(m_name);}
 
-   //+------------------------------------------------------------------+
-   int               GetMe()
-   {
+   //+------------------------------------------------------------------+   
+   int GetMe()
+     {
       if(m_token==NULL)
          return(ERR_TOKEN_ISEMPTY);
       //---
@@ -492,7 +485,7 @@ public:
       string params="";
       int res=PostRequest(out,url,params,WEB_TIMEOUT);
       if(res==0)
-      {
+        {
          CJAVal js(NULL,jtUNDEF);
          //---
          bool done=js.Deserialize(out);
@@ -507,13 +500,13 @@ public:
          //---
          if(m_name==NULL)
             m_name=js["result"]["username"].ToStr();
-      }
+        }
       //---
       return(res);
-   }
-   //+------------------------------------------------------------------+
-   int               GetUpdates()
-   {
+     }
+   //+------------------------------------------------------------------+   
+   int   GetUpdates()
+     {
       if(m_token==NULL)
          return(ERR_TOKEN_ISEMPTY);
 
@@ -523,7 +516,7 @@ public:
       //---
       int res=PostRequest(out,url,params,WEB_TIMEOUT);
       if(res==0)
-      {
+        {
          //Print(out);
          //--- parse result
          CJAVal js(NULL,jtUNDEF);
@@ -539,7 +532,7 @@ public:
 
          int total=ArraySize(js["result"].m_e);
          for(int i=0; i<total; i++)
-         {
+           {
             CJAVal item=js["result"].m_e[i];
             //---
             msg.update_id=item["update_id"].ToInt();
@@ -554,7 +547,11 @@ public:
 
             msg.from_first_name=item["message"]["from"]["first_name"].ToStr();
             msg.from_first_name=StringDecode(msg.from_first_name);
-
+            if(debug)
+            {
+            Print("From : "+item["message"]["from"]["first_name"].ToStr());
+            Print("From(stored) : "+msg.from_first_name);
+            }
             msg.from_last_name=item["message"]["from"]["last_name"].ToStr();
             msg.from_last_name=StringDecode(msg.from_last_name);
 
@@ -581,23 +578,23 @@ public:
 
             //--- filter
             if(m_users_filter.Total()==0 || (m_users_filter.Total()>0 && m_users_filter.SearchLinear(msg.from_username)>=0))
-            {
+              {
 
                //--- find the chat
                int index=-1;
                for(int j=0; j<m_chats.Total(); j++)
-               {
+                 {
                   CCustomChat *chat=m_chats.GetNodeAtIndex(j);
                   if(chat.m_id==msg.chat_id)
-                  {
+                    {
                      index=j;
                      break;
-                  }
-               }
+                    }
+                 }
 
                //--- add new one to the chat list
                if(index==-1)
-               {
+                 {
                   m_chats.Add(new CCustomChat);
                   CCustomChat *chat=m_chats.GetLastNode();
                   chat.m_id=msg.chat_id;
@@ -605,27 +602,121 @@ public:
                   chat.m_state=0;
                   chat.m_new_one.message_text=msg.message_text;
                   chat.m_new_one.done=false;
-               }
+                 }
                //--- update chat message
                else
-               {
+                 {
                   CCustomChat *chat=m_chats.GetNodeAtIndex(index);
                   chat.m_time=TimeLocal();
                   chat.m_new_one.message_text=msg.message_text;
                   chat.m_new_one.done=false;
-               }
-            }
-         }
+                 }
+              }
+           }
          m_first_remove=false;
-      }
+        }
       //---
       return(res);
-   }
-
-   //+------------------------------------------------------------------+
-   int               SendChatAction(const long _chat_id,
-                                    const ENUM_CHAT_ACTION _action)
+     }
+   struct old_updates
    {
+   string text,from_first_name,from_last_name,from_username,chat_first_name,chat_last_name,chat_username,chat_type;
+   long chat_id,message_id,from_id;
+   datetime time;
+   };
+   int GetUpdatesOld(old_updates &response[],int &response_total,int &response_size,int &response_step)
+     {
+      if(m_token==NULL)
+         return(ERR_TOKEN_ISEMPTY);
+
+      string out;
+      string url=StringFormat("%s/bot%s/getUpdates",TELEGRAM_BASE_URL,m_token);
+      string params="offset=-10000&limit=10";
+      //---
+      int res=PostRequest(out,url,params,WEB_TIMEOUT);
+      if(res==0)
+        {
+         //Print(out);
+         //--- parse result
+         CJAVal js(NULL,jtUNDEF);
+         bool done=js.Deserialize(out);
+         if(!done)
+            return(ERR_JSON_PARSING);
+
+         bool ok=js["ok"].ToBool();
+         if(!ok)
+            return(ERR_JSON_NOT_OK);
+
+         CCustomMessage msg;
+
+         int total=ArraySize(js["result"].m_e);
+         for(int i=0; i<total; i++)
+           {
+            CJAVal item=js["result"].m_e[i];
+            response_total++;
+            if(response_total>response_size)
+            {
+            response_size+=response_step;
+            ArrayResize(response,response_size,0);
+            }
+            int rix=response_total-1;
+            
+            //---
+            msg.update_id=item["update_id"].ToInt();
+            //---
+            msg.message_id=item["message"]["message_id"].ToInt();
+            response[rix].message_id=(long)msg.message_id;
+            msg.message_date=(datetime)item["message"]["date"].ToInt();
+            response[rix].time=msg.message_date;
+            //---
+            msg.message_text=item["message"]["text"].ToStr();
+            msg.message_text=StringDecode(msg.message_text);
+            response[rix].text=msg.message_text;
+            
+            //---
+            msg.from_id=item["message"]["from"]["id"].ToInt();
+            response[rix].from_id=msg.from_id;
+            msg.from_first_name=item["message"]["from"]["first_name"].ToStr();
+            msg.from_first_name=StringDecode(msg.from_first_name);
+            response[rix].from_first_name=msg.from_first_name;            
+
+            msg.from_last_name=item["message"]["from"]["last_name"].ToStr();
+            msg.from_last_name=StringDecode(msg.from_last_name);
+            response[rix].from_last_name=msg.from_last_name;
+            
+            msg.from_username=item["message"]["from"]["username"].ToStr();
+            msg.from_username=StringDecode(msg.from_username);
+            response[rix].from_username=msg.from_username;
+            //---
+            msg.chat_id=item["message"]["chat"]["id"].ToInt();
+            response[rix].chat_id=msg.chat_id;
+
+            msg.chat_first_name=item["message"]["chat"]["first_name"].ToStr();
+            msg.chat_first_name=StringDecode(msg.chat_first_name);
+            response[rix].chat_first_name=msg.chat_first_name; 
+             
+            msg.chat_last_name=item["message"]["chat"]["last_name"].ToStr();
+            msg.chat_last_name=StringDecode(msg.chat_last_name);
+            response[rix].chat_last_name=msg.chat_last_name;
+
+            msg.chat_username=item["message"]["chat"]["username"].ToStr();
+            msg.chat_username=StringDecode(msg.chat_username);
+            response[rix].chat_username=msg.chat_username;
+            
+            msg.chat_type=item["message"]["chat"]["type"].ToStr();
+            response[rix].chat_type=msg.chat_type;
+            
+
+           }
+         m_first_remove=false;
+        }
+      //---
+      return(res);
+     }
+   //+------------------------------------------------------------------+
+   int SendChatAction(const long _chat_id,
+                      const ENUM_CHAT_ACTION _action)
+     {
       if(m_token==NULL)
          return(ERR_TOKEN_ISEMPTY);
       string out;
@@ -633,13 +724,13 @@ public:
       string params=StringFormat("chat_id=%lld&action=%s",_chat_id,ChatActionToString(_action));
       int res=PostRequest(out,url,params,WEB_TIMEOUT);
       return(res);
-   }
+     }
 
    //+------------------------------------------------------------------+
-   int               SendPhoto(const long   _chat_id,
-                               const string _photo_id,
-                               const string _caption=NULL)
-   {
+   int SendPhoto(const long   _chat_id,
+                 const string _photo_id,
+                 const string _caption=NULL)
+     {
       if(m_token==NULL)
          return(ERR_TOKEN_ISEMPTY);
 
@@ -651,7 +742,7 @@ public:
 
       int res=PostRequest(out,url,params,WEB_TIMEOUT);
       if(res!=0)
-      {
+        {
          //--- parse result
          CJAVal js(NULL,jtUNDEF);
          bool done=js.Deserialize(out);
@@ -662,19 +753,19 @@ public:
          bool ok=js["ok"].ToBool();
          long err_code=js["error_code"].ToInt();
          string err_desc=js["description"].ToStr();
-      }
+        }
       //--- done
       return(res);
-   }
+     }
 
    //+------------------------------------------------------------------+
-   int               SendPhoto(string &_photo_id,
-                               const string _channel_name,
-                               const string _local_path,
-                               const string _caption=NULL,
-                               const bool _common_flag=false,
-                               const int _timeout=10000)
-   {
+   int SendPhoto(string &_photo_id,
+                 const string _channel_name,
+                 const string _local_path,
+                 const string _caption=NULL,
+                 const bool _common_flag=false,
+                 const int _timeout=10000)
+     {
       if(m_token==NULL)
          return(ERR_TOKEN_ISEMPTY);
 
@@ -712,7 +803,7 @@ public:
       uchar key[];
       CryptEncode(CRYPT_BASE64,photo,key,base64);
       //---
-      uchar temp[1024]= {0};
+      uchar temp[1024]={0};
       ArrayCopy(temp,base64,0,0,1024);
       //---
       uchar md5[];
@@ -720,7 +811,7 @@ public:
       //---
       string hash=NULL;
       int total=ArraySize(md5);
-      for(int i=0; i<total; i++)
+      for(int i=0;i<total;i++)
          hash+=StringFormat("%02X",md5[i]);
       hash=StringSubstr(hash,0,16);
 
@@ -742,13 +833,13 @@ public:
       ArrayAdd(data,"\r\n");
 
       if(StringLen(_caption)>0)
-      {
+        {
          ArrayAdd(data,"--"+hash+"\r\n");
          ArrayAdd(data,"Content-Disposition: form-data; name=\"caption\"\r\n");
          ArrayAdd(data,"\r\n");
          ArrayAdd(data,_caption);
          ArrayAdd(data,"\r\n");
-      }
+        }
 
       ArrayAdd(data,"--"+hash+"\r\n");
       ArrayAdd(data,"Content-Disposition: form-data; name=\"photo\"; filename=\"lampash.gif\"\r\n");
@@ -763,17 +854,17 @@ public:
       string headers="Content-Type: multipart/form-data; boundary="+hash+"\r\n";
       int res=WebRequest("POST",url,headers,_timeout,data,result,result_headers);
       if(res==200)//OK
-      {
+        {
          //--- delete BOM
          int start_index=0;
          int size=ArraySize(result);
          for(int i=0; i<fmin(size,8); i++)
-         {
+           {
             if(result[i]==0xef || result[i]==0xbb || result[i]==0xbf)
                start_index=i+1;
             else
                break;
-         }
+           }
 
          //---
          string out=CharArrayToString(result,start_index,WHOLE_ARRAY,CP_UTF8);
@@ -791,47 +882,47 @@ public:
 
          total=ArraySize(js["result"]["photo"].m_e);
          for(int i=0; i<total; i++)
-         {
+           {
             CJAVal image=js["result"]["photo"].m_e[i];
 
             long image_size=image["file_size"].ToInt();
             if(image_size<=file_size)
                _photo_id=image["file_id"].ToStr();
-         }
+           }
 
          return(0);
-      }
+        }
       else
-      {
+        {
          if(res==-1)
-         {
+           {
             string out=CharArrayToString(result,0,WHOLE_ARRAY,CP_UTF8);
             //Print(out);
             return(_LastError);
-         }
+           }
          else
-         {
+           {
             if(res>=100 && res<=511)
-            {
+              {
                string out=CharArrayToString(result,0,WHOLE_ARRAY,CP_UTF8);
                //Print(out);
                return(ERR_HTTP_ERROR_FIRST+res);
-            }
+              }
             return(res);
-         }
-      }
-      //---
+           }
+        }
+      //---        
       return(0);
-   }
+     }
 
    //+------------------------------------------------------------------+
-   int               SendPhoto(string &_photo_id,
-                               const long _chat_id,
-                               const string _local_path,
-                               const string _caption=NULL,
-                               const bool _common_flag=false,
-                               const int _timeout=10000)
-   {
+   int SendPhoto(string &_photo_id,
+                 const long _chat_id,
+                 const string _local_path,
+                 const string _caption=NULL,
+                 const bool _common_flag=false,
+                 const int _timeout=10000)
+     {
       if(m_token==NULL)
          return(ERR_TOKEN_ISEMPTY);
 
@@ -862,7 +953,7 @@ public:
       uchar key[];
       CryptEncode(CRYPT_BASE64,photo,key,base64);
       //---
-      uchar temp[1024]= {0};
+      uchar temp[1024]={0};
       ArrayCopy(temp,base64,0,0,1024);
       //---
       uchar md5[];
@@ -870,7 +961,7 @@ public:
       //---
       string hash=NULL;
       int total=ArraySize(md5);
-      for(int i=0; i<total; i++)
+      for(int i=0;i<total;i++)
          hash+=StringFormat("%02X",md5[i]);
       hash=StringSubstr(hash,0,16);
 
@@ -892,13 +983,13 @@ public:
       ArrayAdd(data,"\r\n");
 
       if(StringLen(_caption)>0)
-      {
+        {
          ArrayAdd(data,"--"+hash+"\r\n");
          ArrayAdd(data,"Content-Disposition: form-data; name=\"caption\"\r\n");
          ArrayAdd(data,"\r\n");
          ArrayAdd(data,_caption);
          ArrayAdd(data,"\r\n");
-      }
+        }
 
       ArrayAdd(data,"--"+hash+"\r\n");
       ArrayAdd(data,"Content-Disposition: form-data; name=\"photo\"; filename=\"lampash.gif\"\r\n");
@@ -913,17 +1004,17 @@ public:
       string headers="Content-Type: multipart/form-data; boundary="+hash+"\r\n";
       int res=WebRequest("POST",url,headers,_timeout,data,result,result_headers);
       if(res==200)//OK
-      {
+        {
          //--- delete BOM
          int start_index=0;
          int size=ArraySize(result);
          for(int i=0; i<fmin(size,8); i++)
-         {
+           {
             if(result[i]==0xef || result[i]==0xbb || result[i]==0xbf)
                start_index=i+1;
             else
                break;
-         }
+           }
 
          //---
          string out=CharArrayToString(result,start_index,WHOLE_ARRAY,CP_UTF8);
@@ -941,48 +1032,48 @@ public:
 
          total=ArraySize(js["result"]["photo"].m_e);
          for(int i=0; i<total; i++)
-         {
+           {
             CJAVal image=js["result"]["photo"].m_e[i];
 
             long image_size=image["file_size"].ToInt();
             if(image_size<=file_size)
                _photo_id=image["file_id"].ToStr();
-         }
+           }
 
          return(0);
-      }
+        }
       else
-      {
+        {
          if(res==-1)
-         {
+           {
             string out=CharArrayToString(result,0,WHOLE_ARRAY,CP_UTF8);
             //Print(out);
             return(_LastError);
-         }
+           }
          else
-         {
+           {
             if(res>=100 && res<=511)
-            {
+              {
                string out=CharArrayToString(result,0,WHOLE_ARRAY,CP_UTF8);
                //Print(out);
                return(ERR_HTTP_ERROR_FIRST+res);
-            }
+              }
             return(res);
-         }
-      }
-      //---
+           }
+        }
+      //---        
       return(0);
-   }
+     }
    //+------------------------------------------------------------------+
    virtual void      ProcessMessages(void);
 
    //+------------------------------------------------------------------+
-   int               SendMessage(const long    _chat_id,
-                                 const string  _text,
-                                 const string  _reply_markup=NULL,
-                                 const bool    _as_HTML=false,
-                                 const bool    _silently=false)
-   {
+   int SendMessage(const long    _chat_id,
+                   const string  _text,
+                   const string  _reply_markup=NULL,
+                   const bool    _as_HTML=false,
+                   const bool    _silently=false)
+     {
       //--- check token
       if(m_token==NULL)
          return(ERR_TOKEN_ISEMPTY);
@@ -1000,14 +1091,56 @@ public:
 
       int res=PostRequest(out,url,params,WEB_TIMEOUT);
       return(res);
-   }
+     }
+   int SendMessageGetID(bool replying_to_message,
+                        long message_id_replying_to,
+                        long    _chat_id,
+                        string  _text,
+                        string  _reply_markup,
+                        bool    _as_HTML,
+                        bool    _silently,
+                        long &return_id)
+     {
+      //--- check token
+      if(m_token==NULL)
+         return(ERR_TOKEN_ISEMPTY);
 
+      string out;
+      string url=StringFormat("%s/bot%s/sendMessage",TELEGRAM_BASE_URL,m_token);
+
+      string params="";
+      if(!replying_to_message) params=StringFormat("chat_id=%lld&text=%s",_chat_id,UrlEncode(_text));
+      if(replying_to_message)
+        {
+        params=StringFormat("chat_id=%lld&&reply_to_message_id=%lld&text=%s",_chat_id,message_id_replying_to,UrlEncode(_text));
+        //params+="&reply_to_message_id="+IntegerToString(message_id_replying_to);
+        }
+      if(_reply_markup!=NULL)
+         params+="&reply_markup="+_reply_markup;
+      if(_as_HTML)
+         params+="&parse_mode=HTML";
+      if(_silently)
+         params+="&disable_notification=true";
+
+      int res=PostRequest(out,url,params,WEB_TIMEOUT);
+        //get message id for user to quote later if they want to
+        return_id=-1;
+        //--- parse result
+        CJAVal js(NULL,jtUNDEF);
+        bool done=js.Deserialize(out);
+        if(!done) return(ERR_JSON_PARSING);
+        //--- get error description
+        bool ok=js["ok"].ToBool();
+        if(!ok) return(ERR_JSON_NOT_OK);
+        return_id=(long)js["result"]["message_id"].ToInt();
+      return(res);
+     }
    //+------------------------------------------------------------------+
-   int               SendMessage(const string _channel_name,
-                                 const string _text,
-                                 const bool   _as_HTML=false,
-                                 const bool   _silently=false)
-   {
+   int SendMessage(const string _channel_name,
+                   const string _text,
+                   const bool   _as_HTML=false,
+                   const bool   _silently=false)
+     {
       //--- check token
       if(m_token==NULL)
          return(ERR_TOKEN_ISEMPTY);
@@ -1026,27 +1159,27 @@ public:
       //      Print(params);
       int res=PostRequest(out,url,params,WEB_TIMEOUT);
       return(res);
-   }
+     }
 
    //+------------------------------------------------------------------+
-   string            ReplyKeyboardMarkup(const string keyboard,
-                                         const bool resize,
-                                         const bool one_time)
-   {
+   string ReplyKeyboardMarkup(const string keyboard,
+                              const bool resize,
+                              const bool one_time)
+     {
       string result=StringFormat("{\"keyboard\": %s, \"one_time_keyboard\": %s, \"resize_keyboard\": %s, \"selective\": false}",UrlEncode(keyboard),BoolToString(resize),BoolToString(one_time));
       return(result);
-   }
+     }
 
    //+------------------------------------------------------------------+
-   string            ReplyKeyboardHide()
-   {
+   string ReplyKeyboardHide()
+     {
       return("{\"hide_keyboard\": true}");
-   }
+     }
 
    //+------------------------------------------------------------------+
-   string            ForceReply()
-   {
+   string ForceReply()
+     {
       return("{\"force_reply\": true}");
-   }
-};
+     }
+  };
 //+------------------------------------------------------------------+
